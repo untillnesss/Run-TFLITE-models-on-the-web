@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Webcam + TensorFlow.js</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+</head>
+
+<body>
+    <video id="webcam" autoplay playsinline width="640" height="640"></video>
+    <script>
+        const labels = [
+
+            'person',
+            'bicycle',
+            'car',
+            'motorcycle',
+            'airplane',
+            'bus',
+            'train',
+            'truck',
+            'boat',
+            'traffic light',
+            'fire hydrant',
+            'stop sign',
+            'parking meter',
+            'bench',
+            'bird',
+            'cat',
+            'dog',
+            'horse',
+            'sheep',
+            'cow',
+            'elephant',
+            'bear',
+            'zebra',
+            'giraffe',
+            'backpack',
+            'umbrella',
+            'handbag',
+            'tie',
+            'suitcase',
+            'frisbee',
+            'skis',
+            'snowboard',
+            'sports ball',
+            'kite',
+            'baseball bat',
+            'baseball glove',
+            'skateboard',
+            'surfboard',
+            'tennis racket',
+            'bottle',
+            'wine glass',
+            'cup',
+            'fork',
+            'knife',
+            'spoon',
+            'bowl',
+            'banana',
+            'apple',
+            'sandwich',
+            'orange',
+            'broccoli',
+            'carrot',
+            'hot dog',
+            'pizza',
+            'donut',
+            'cake',
+            'chair',
+            'couch',
+            'potted plant',
+            'bed',
+            'dining table',
+            'toilet',
+            'tv',
+            'laptop',
+            'mouse',
+            'remote',
+            'keyboard',
+            'cell phone',
+            'microwave',
+            'oven',
+            'toaster',
+            'sink',
+            'refrigerator',
+            'book',
+            'clock',
+            'vase',
+            'scissors',
+            'teddy bear',
+            'hair drier',
+            'toothbrush',
+        ];
+
+        async function setupWebcam() {
+            const webcamElement = document.getElementById('webcam');
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+            });
+            webcamElement.srcObject = stream;
+
+            return new Promise((resolve) => {
+                webcamElement.onloadedmetadata = () => {
+                    resolve(webcamElement);
+                };
+            });
+        }
+
+        async function loadAndPredict() {
+            const model = await tf.loadGraphModel('./result/model.json'); // update path as needed
+
+            const webcam = await setupWebcam();
+
+            const predictLoop = async () => {
+                tf.engine().startScope();
+
+                // Read the frame from webcam and resize to match model input
+                const inputTensor = tf.browser.fromPixels(webcam)
+                    .resizeNearestNeighbor([640, 640]) // Adjust to match model input
+                    .toFloat()
+                    .div(255.0) // Normalize if required by the model
+                    .expandDims();
+
+                const prediction = await model.executeAsync(inputTensor);
+                // prediction.print(); // Display result in console
+
+                showResult(prediction)
+
+                tf.engine().endScope();
+
+                requestAnimationFrame(predictLoop);
+            };
+
+            predictLoop();
+        }
+
+        loadAndPredict();
+
+
+        function showResult(prediction) {
+            // const reshapedPredictions = prediction.reshape([5, 8400]);
+
+            // console.log(reshapedPredictions);
+            
+
+            const predictions = prediction.dataSync();
+            console.log(predictions);
+
+            // const topIndex = predictions[0].indexOf(Math.max(...predictions[0]));
+            // console.log(topIndex);
+
+            // const predictedLabel = labels[topIndex];
+            // console.log('Prediction:', predictedLabel);
+
+
+            // // Process the output tensors
+            // const [boxes, scores, classes] = prediction;
+            // const boxesData = boxes.dataSync();
+            // const scoresData = scores.dataSync();
+            // const classesData = classes.dataSync();
+
+            // // Filter predictions by confidence threshold
+            // const confidenceThreshold = 0.5;
+            // const validDetections = [];
+            // for (let i = 0; i < scoresData.length; i++) {
+            //     if (scoresData[i] > confidenceThreshold) {
+            //         validDetections.push({
+            //             box: boxesData.slice(i * 4, (i + 1) * 4),
+            //             score: scoresData[i],
+            //             class: classesData[i]
+            //         });
+            //     }
+            // }
+
+            // console.log(validDetections);
+            
+        }
+
+    </script>
+</body>
+
+</html>

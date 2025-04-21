@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Real-time Object Detection (TensorFlow.js Conceptual)</title>
+    <style>
+        body { margin: 0; }
+        video { display: block; }
+        canvas { position: absolute; top: 0; left: 0; }
+    </style>
+</head>
+<body>
+    <canvas id="outputCanvas" width="640" height="480"></canvas>
+    <video id="webcam" width="640" height="480" autoplay playsinline></video>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script>
+        async function main() {
+            const videoElement = document.getElementById('webcam');
+            const canvasElement = document.getElementById('outputCanvas');
+            const ctx = canvasElement.getContext('2d');
+
+            // **IMPORTANT:** Replace 'path/to/your/model.json' with the actual path
+            // to your TensorFlow.js model files (model.json and potentially
+            // .bin files). These files would typically be hosted on a web server
+            // or potentially loaded from local storage if handled appropriately.
+            // const modelPath = 'https://tfhub.dev/tensorflow/tfjs-model/ssd_mobilenet_v2/1/default/1/model.json?lite-format=tfjs'; // Example MobileNet SSD from TF Hub
+            const modelPath = './result/model.json'; // Example MobileNet SSD from TF Hub
+
+            try {
+                const model = await tf.loadGraphModel(modelPath);
+                console.log('Model loaded successfully!');
+
+                // Get access to the webcam
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                videoElement.srcObject = stream;
+
+                videoElement.onloadedmetadata = async () => {
+                    canvasElement.width = videoElement.videoWidth;
+                    canvasElement.height = videoElement.videoHeight;
+
+                    async function detectFrame() {
+                        if (videoElement.readyState === 4) { // Ensure video is loaded
+                            const predictions = tf.tidy(() => {
+                                const videoTensor = tf.browser.fromPixels(videoElement);
+                                const resizedTensor = tf.image.resizeBilinear(videoTensor, [model.inputs[0].shape[1], model.inputs[0].shape[2]]).expandDims(0);
+                                const normalizedTensor = tf.div(resizedTensor, 255.0); // Normalize pixel values
+                                return model.predict(normalizedTensor);
+                            });
+
+                            await renderPredictions(ctx, predictions, videoElement.videoWidth, videoElement.videoHeight);
+                            predictions.dispose(); // Clean up tensors
+                            requestAnimationFrame(detectFrame); // Loop for continuous detection
+                        } else {
+                            requestAnimationFrame(detectFrame); // Try again if video not loaded
+                        }
+                    }
+
+                    detectFrame();
+                };
+
+            } catch (error) {
+                console.error('Error loading model or accessing webcam:', error);
+            }
+        }
+
+        async function renderPredictions(ctx, predictions, width, height) {
+            const threshold = 0.5;
+            const boxes = await predictions.slice([0, 0, 0], [1, -1, 4]).data();
+            const scores = await predictions.slice([0, 0, 4], [1, -1, 1]).data();
+            const classes = await predictions.slice([0, 0, 5], [1, -1, 1]).data();
+
+            console.log(classes);
+            
+
+            // ctx.clearRect(0, 0, width, height);
+
+            // for (let i = 0; i < scores.length; i++) {
+                
+            //     if (scores[i] > threshold) {
+            //         const classId = parseInt(classes[i]); // Convert to integer
+            //         const label = `Class: ${classId}, Score: ${(scores[i] * 100).toFixed(2)}%`;
+
+            //         console.log(label);
+                    
+
+
+            //         const [yMin, xMin, yMax, xMax] = boxes.slice(i * 4, (i + 1) * 4);
+            //         console.table(yMin, xMin, yMax, xMax);
+
+            //         const x = xMin ;
+            //         const y = yMin ;
+            //         const w = (xMax - xMin) ;
+            //         const h = (yMax - yMin) ;
+
+                    
+
+
+            //         ctx.strokeStyle = 'red';
+            //         ctx.lineWidth = 2;
+            //         ctx.strokeRect(x, y, w, h);
+            //         ctx.fillStyle = 'red';
+            //         ctx.font = '14px sans-serif';
+            //         ctx.fillText(label, x, y - 5);
+            //     }
+            // }
+        }
+
+        main();
+    </script>
+</body>
+</html>
